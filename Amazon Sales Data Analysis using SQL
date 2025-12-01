@@ -1,0 +1,159 @@
+-- Data Wrangling--
+-- step.1] creating database and importing data using table data import wizard --
+
+create database Amazon;
+use Amazon;
+RENAME TABLE `amazon data for sql project` TO `amz`;
+
+-- Checked for any null values in the data --
+select count(*) as count_of_null from amz where null;
+
+-- step.2] Feature Engineering --
+-- adding new columns timeoftheday, dayname, monthname by extracting values from date and time column --
+-- this will help to analyse sales based on month, day of week, time of day --- 
+select 'Product line' from amz;
+SELECT `Product line` FROM amz LIMIT 10;
+alter table amz add column timeoftheday varchar(20); -- created column timeoftheday
+update amz set timeoftheday =
+case 
+when hour(Time) between 06 and 11 then 'Morning'
+when hour(Time) between 12 and 17 then 'Afternoon'
+else 'Evening'
+end;
+
+alter table amz add column dayname varchar(20); -- created column named dayname
+
+alter table amz add column clean_date date; -- created new column to store cleaned date according to sql format i.e. yyyy-mm-dd
+update amz set clean_date = str_to_date(Date, '%d-%m-%Y'); -- cleaned the date column and stored it in clean_date column
+update amz set dayname = (select dayname(clean_date)); -- to find the day on date given
+select dayname from amz;
+
+alter table amz add column monthname varchar(20); -- created column named monthname
+update amz set monthname = (select monthname(clean_date)); -- to find the month on date given
+select monthname from amz;
+
+-- step.3] Answering the Questions
+-- 1 count of distinct cities in the dataset
+select count(distinct(city)) from amz;
+
+-- 2 For each branch, what is the corresponding city?
+select distinct city, branch from amz;
+
+-- 3 What is the count of distinct product lines in the dataset?
+select count(`Product line`) from amz;
+
+-- 4 Which payment method occurs most frequently?
+select payment, count(*) as Occurance from amz group by payment order by Occurance desc limit 1;
+
+-- 5 Which product line has the highest sales?
+select `Product line`, count(*) as Total_Sales from amz group by `Product line` order by Total_Sales desc limit 1;
+
+-- 6 How much revenue is generated each month?
+select sum(Total), monthname from amz group by monthname;
+
+-- 7 In which month did the cost of goods sold reach its peak?
+select sum(cogs) as Highest_COGS, monthname from amz group by monthname order by Highest_COGS desc limit 1;
+
+-- 8 Which product line generated the highest revenue?
+select `Product line`, sum(Total) as highest_revenue from amz group by `Product line` order by highest_revenue desc limit 1;
+-- 9 In which city was the highest revenue recorded?
+select City, sum(Total) as highest_revenue from amz group by City order by highest_revenue desc limit 1;
+-- 10 Which product line incurred the highest Value Added Tax?
+select `Product line`, max('Tax 5%') as highest_VAT from amz group by `Product line` order by highest_VAT desc limit 1;
+-- 11 For each product line, add a column indicating "Good" if its sales are above average, otherwise "Bad."
+select `Product line`, sum(Total) as Sales,
+ case 
+	when (select avg(Total_Sales) from (select sum(Total) as Total_Sales from amz group by 'Product line') as Avg_Sales)
+	then 'Good'
+	else 'Bad'
+ end as performance
+from amz 
+group by `Product line`;
+
+-- 12 Identify the branch that exceeded the average number of products sold.
+select branch, sum(quantity) as Products_Sold
+from amz
+group by branch
+having Products_Sold>(select avg(branch_sum) from (select sum(Quantity) as branch_sum from amz group by branch) as sub);
+
+-- 13 Which product line is most frequently associated with each gender?
+select gender, `Product line`, count(*) as freq
+from amz
+group by gender, `Product line`
+order by gender, freq desc;
+-- 14 Calculate the average rating for each product line.
+select `Product line`, avg(Rating) as Average_Rating
+from amz
+group by `Product line`
+order by Average_Rating desc;
+-- 15 Count the sales occurrences for each time of day on every weekday.
+select timeoftheday, count(*) as Sales_Count
+from amz
+group by timeoftheday
+order by Sales_Count desc;
+-- 16 Identify the customer type contributing the highest revenue.
+select `Customer type`, sum(Total) as Revenue
+from amz
+group by `Customer type`
+order by Revenue desc;
+
+--  17 Determine the city with the highest VAT percentage.
+SELECT city,   -- Need to check this code and work on it
+       SUM(`Tax 5%`) AS vat_pct
+FROM amz
+GROUP BY city
+ORDER BY vat_pct DESC
+LIMIT 1; 
+
+--  18 Identify the customer type with the highest VAT payments.
+-- same like above
+SELECT `Customer type`, SUM(`Tax 5%`) AS total_vat
+FROM amz
+GROUP BY `Customer type`
+ORDER BY total_vat DESC
+LIMIT 1;
+
+-- 19 What is the count of distinct customer types in the dataset?
+select `Customer type`, count(distinct `Customer type`) as Count_Cust_type from amz group by `Customer type`;
+
+-- 20 What is the count of distinct payment methods in the dataset?
+select Payment, count(distinct Payment) as Count_Payment_type from amz group by Payment ;
+--  21 Which customer type occurs most frequently?
+select `Customer type`, count(*) as freq from amz group by `Customer type` order by freq desc limit 1 ;
+--  22 Identify the customer type with the highest purchase frequency.
+select `Customer type`, count(*) as freq from amz group by `Customer type` order by freq desc limit 1 ;
+-- 23 Determine the predominant gender among customers.
+select gender, count(*) as total 
+from amz
+group by gender
+order by total desc
+limit 1;
+--  24 Examine the distribution of genders within each branch.
+select gender, branch,  count(*) as total 
+from amz
+group by branch, gender
+order by branch, total desc;
+
+-- 25 Identify the time of day when customers provide the most ratings.
+select timeoftheday, count(rating) as Ratings
+from amz
+group by timeoftheday
+order by Ratings desc;
+
+-- 26 Determine the time of day with the highest customer ratings for each branch.
+select timeoftheday, branch , count(rating) as Ratings
+from amz
+group by timeoftheday, branch
+order by branch, Ratings desc;
+
+-- 27 Identify the day of the week with the highest average ratings.
+select dayname, round(avg(rating), 2) as Average_Rating
+from amz
+group by dayname
+order by Average_Rating desc;
+
+-- 28 Determine the day of the week with the highest average ratings for each branch.
+select dayname, branch, round(avg(rating), 2) as Average_Rating
+from amz
+group by dayname, branch
+order by branch, Average_Rating desc;
